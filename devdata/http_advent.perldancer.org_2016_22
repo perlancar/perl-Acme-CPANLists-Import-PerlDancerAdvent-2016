@@ -1,0 +1,264 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> The new Dancer2 plugin system | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="the_new_dancer2_plugin_system"></a>The new Dancer2 plugin system</h1>
+
+<p>The biggest milestone this year in Dancer2 was version 0.200000, which
+introduced the long-awaited, completely reworked Dancer2 plugin
+system.</p>
+<p>The previous plugin system suffered several key issues, all of which
+are now resolved by this new plugin systems.</p>
+<p>Plugins are now easy to write and are far more capable than they were
+before.</p>
+<h2><a name="your_first_plugin"></a>Your first plugin</h2>
+
+<p>When using the new plugin systems, you need only load a single class:</p>
+<pre class="prettyprint">package Dancer2::Plugin::MyPlugin;
+use strict;
+use warnings;
+use Dancer2::Plugin;</pre>
+
+<p>You now have a full object oriented framework, which means you have
+attributes:</p>
+<pre class="prettyprint">has 'name' =&gt; (
+    'is'      =&gt; 'ro',
+    'default' =&gt; sub {'Sawyer'},
+);</pre>
+
+<p>If we want to export any keywords, we only need to call the right
+keyword:</p>
+<pre class="prettyprint">plugin_keywords('name');</pre>
+
+<p>We can also call DSL by using the <code>dsl</code> method. Our object oriented
+system will run the <code>BUILD</code> method as soon as a new plugin object is
+loaded:</p>
+<pre class="prettyprint">sub BUILD {
+    my $self = shift;
+
+    $self-&gt;dsl-&gt;get( '/', sub {
+        $self-&gt;dsl-&gt;template(
+            'index',
+            { 'name' =&gt; $self-&gt;name },
+        );
+    } );
+}</pre>
+
+<h2><a name="configuring_your_plugin"></a>Configuring your plugin</h2>
+
+<p>Your applications can now use the plugin, and even provide values
+for them:</p>
+<pre class="prettyprint"># In your config.yml:
+plugins:
+    MyPlugin:
+        name: "Yanick"</pre>
+
+<p>Then later you can reach them using the <code>config</code> attribute:</p>
+<pre class="prettyprint">has 'name' =&gt; (
+    'is'      =&gt; 'ro',
+    'default' =&gt; sub {
+        return config-&gt;{'name'} || 'Sawyer';
+    },
+);</pre>
+
+<p>However, note that configurations will not update the attributes
+once they are set.</p>
+<h3><a name="using_other_plugins"></a>Using other plugins</h3>
+
+<p>You can use additional plugins within your plugin - a big thorn in the
+side of plugin developers until this new system.</p>
+<pre class="prettyprint">package Dancer2::Plugin::Foo;
+use strict;
+use warnings;
+use Dancer2::Plugin;
+use Dancer2::Plugin::Bar;
+
+# You can now use keywords from Dancer2::Plugin::Bar</pre>
+
+<h3><a name="hooks"></a>Hooks</h3>
+
+<p>You can provide your own hooks using the <code>plugin_hooks</code>. Users can
+register actions to these hooks and you can then execute these hooks
+from your application:</p>
+<pre class="prettyprint">plugin_keywords('my_keyword');
+plugin_hooks('my_hook');
+
+sub my_keyword {
+    my $self = shift;
+    $self-&gt;execute_plugin_hook('my_hook');
+}</pre>
+
+<p>You can also call hooks available in the application:</p>
+<pre class="prettyprint">$self-&gt;app-&gt;execute_hook('on_route_exception');</pre>
+
+<h3><a name="subclassing"></a>Subclassing</h3>
+
+<p>You can subclass other plugins:</p>
+<pre class="prettyprint">package Dancer2::Plugin::Subclass;
+use strict;
+use warnings;
+
+# Get keywords
+use Dancer2::Plugin;
+
+# Extend
+extends('Dancer2::Plugin::Parent');
+
+# Export this keyword as well
+plugin_keywords('keyword_from_parent');
+
+# redefine it
+sub keyword_from_parent {
+    my ( $self, @args_from_user ) = @_;
+
+    my @args = @args_from_user;
+    if ( !@args ) {
+        @args = ( 'our', 'default', 'args' );
+    }
+
+    # Call the parent keyword
+    $self-&gt;SUPER::keyword_from_parent(@args);
+}
+
+1;</pre>
+
+<h3><a name="utilize_existing_plugins"></a>Utilize existing plugins</h3>
+
+<p>From version 0.205000, you can now easily locate additional plugins and
+use their abilities:</p>
+<pre class="prettyprint">package Dancer2::Plugin::Special;
+use strict;
+use warnings;
+use Dancer2::Plugin;
+
+plugin_keywords('special');
+
+sub special {
+  my $self = shift;
+
+  my $basic_plugin = $self-&gt;find_plugin('Dancer2::Plugin::Basic')
+      or $self-&gt;dsl-&gt;send_error( 'Please load Dancer2::Plugin::Basic', 500 );
+
+  my $basic = $basic_plugin-&gt;normal_keyword;
+  return "Special $basic";
+}
+
+1;</pre>
+
+<p>Now a user needs to load both plugins, and they will work together.</p>
+<pre class="prettyprint">package MyApp;
+use Dancer2;
+use Dancer2::Plugin::Basic;
+use Dancer2::Plugin::Special;</pre>
+
+<h2><a name="summary"></a>Summary</h2>
+
+<p>All the details are available in <a href="https://metacpan.org/module/Dancer2::Plugin">Dancer2::Plugin</a>. There is at least
+one extra feature I haven't covered, just waiting for you to find it.
+Here's a clue: Attributes exporting. :)</p>
+<p>Now with the new plugin system in place, we can not only provide
+consistent and highly-capable plugins, but introduce new stable
+features in the future.</p>
+<p>Keep in touch to see where it leads us!</p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Sawyer X for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>No copyright retained. Enjoy.</p>
+<p>Sawyer X.</p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

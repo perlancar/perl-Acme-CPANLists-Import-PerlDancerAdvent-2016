@@ -1,0 +1,217 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> Medium-Scale Dancer, Part 2: Route Definitions | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="medium_scale_dancer__part_2__route_definitions"></a>Medium-Scale Dancer, Part 2: Route Definitions</h1>
+
+<p>By the time a Dancer app grows large enough that you want to start
+breaking it up into multiple Perl modules, as in the
+<a href="http://advent.perldancer.org/2016/3">previous article in this series</a>,
+you've probably also defined enough routes that you're starting to have
+problems managing them all. Just as with the Perl code, Dancer lets us
+break up the monolithic route definition set, too.</p>
+<p>If you structured your app in the way recommended in the previous
+article, each major feature of your web app is now in its own Perl
+module. That Perl module's name likely corresponds to some part of your
+app's URL scheme. Let's say you're exposing the features of
+<code>App::MajorFeature</code> as <code>/mf</code> in URLs, with sub-features defined in
+<code>App::MajorFeature::SubFeature</code> and exposed via <code>/mf/sf</code> routes.</p>
+<p>If you extend the generated <code>lib/App.pm</code> file by following the simplest
+examples from the Dancer documentation, you might have a mess that looks
+something like this:</p>
+<pre class="prettyprint">get '/mf' =&gt; sub {
+    # Lots of Perl code to return the top-level MajorFeature view
+};
+
+get '/mf/sf' =&gt; sub {
+    # Implementation of a sub-feature of MajorFeature
+};
+
+post '/mf/sf' =&gt; sub {
+    # Maybe you need a way to add new subfeature objects
+};
+
+put '/mf/sf' =&gt; sub {
+    # And maybe also a way to edit existing subfeature objects
+};
+
+del '/mf/sf/:id' =&gt; sub {
+    # And a way to delete them, too
+};</pre>
+
+<p>The first thing to fix here is that almost all of the Perl code
+implementing each route handler should move to <code>lib/App/*.pm</code>. Ideally,
+each route handler body should do nothing more than call a function in
+one of these modules:</p>
+<pre class="prettyprint">get  '/mf'        =&gt; \&amp;App::MajorFeature::retrieve;
+get  '/mf/sf'     =&gt; \&amp;App::MajorFeature::SubFeature::retreive;
+post '/mf/sf'     =&gt; \&amp;App::MajorFeature::SubFeature::add;
+put  '/mf/sf'     =&gt; \&amp;App::MajorFeature::SubFeature::modify;
+del  '/mf/sf/:id' =&gt; \&amp;App::MajorFeature::SubFeature::remove;</pre>
+
+<p>Notice that by moving all of the code for each route handler into a
+function in one of our module files, we can replace the inline anonymous
+function references with explicit fully qualified function references.</p>
+<p>There's a fair bit of redundancy in that code, which we'll compress out
+in two stages.</p>
+<p>First, Dancer has the awesome
+<a href="https://metacpan.org/pod/distribution/Dancer2/lib/Dancer2/Manual.pod#prefix"><code>prefix</code></a>
+feature, which lets us express the URL hierarchy directly in the code,
+without repeating elements of the URL:</p>
+<pre class="prettyprint">prefix '/mf' =&gt; sub {
+    get '' =&gt; \&amp;App::MajorFeature::retrieve;
+    prefix '/sf' =&gt; sub {
+        get  ''     =&gt; \&amp;App::MajorFeature::SubFeature::retreive;
+        post ''     =&gt; \&amp;App::MajorFeature::SubFeature::add;
+        put  ''     =&gt; \&amp;App::MajorFeature::SubFeature::modify;
+        del  '/:id' =&gt; \&amp;App::MajorFeature::SubFeature::remove;
+    };
+};</pre>
+
+<p>As you can see, this makes the overall code narrower, because we're not
+repeating ourselves as much. This move toward using <code>prefix</code> will help
+considerably later in this series of articles.</p>
+<p>A second excellent feature of Dancer lets us shorten those lines of code
+still further.</p>
+<p>So far, we've been using explicitly-qualified function names. This is
+because we want to use short function names within the modules (e.g.
+<code>retrieve()</code>) without causing namespace collisions by exporting all of
+the functions. But in fact, there is actually no need to expose the API
+of your modules outside the module itself. Dancer doesn't care <i>where</i>
+you define the route handlers, just that they're all defined by the time
+your caller wants to use them. In the previous part of this article
+series, we said <code>use App::MajorFeature</code> and such within <code>lib/App.pm</code>,
+so every one of our app's modules gets executed on startup. This means
+that any code at global scope within these modules also runs at startup.</p>
+<p>Therefore, we can move all of the route definitions above from
+<code>lib/App.pm</code> to the end of the module where we define each route's
+handler. That is, the tail end of <code>lib/App/MajorFeature.pm</code> says:</p>
+<pre class="prettyprint">prefix '/mf' =&gt; sub {
+    get '' =&gt; \&amp;retrieve;
+};</pre>
+
+<p>...and the tail end of <code>lib/App/MajorFeature/SubFeature.pm</code> says:</p>
+<pre class="prettyprint">prefix '/mf' =&gt; sub {
+    prefix '/sf' =&gt; sub {
+        get  ''     =&gt; \&amp;retreive;
+        post ''     =&gt; \&amp;add;
+        put  ''     =&gt; \&amp;modify;
+        del  '/:id' =&gt; \&amp;remove;
+    };
+};</pre>
+
+<p>The route definitions are much shorter now because they refer to
+module-local functions defined above the route definitions, so the code
+references don't need to be fully-qualified.</p>
+<p>Having done all this, all that's left behind in <code>lib/App.pm</code> is Dancer
+startup and other initialization code, such as hook definitions, as is
+appropriate for the app's top-level module.</p>
+<p>The bulk of the application's code is now collected into a set of
+tightly-scoped modules. These modules should also be largely decoupled
+since only Dancer needs to know how to call into them, and you told it
+how from the module itself, by defining routes. Beautiful.</p>
+<p>In the <a href="http://advent.perldancer.org/2016/5">next part of this series</a>,
+we will consider how this application restructuring affects the way we
+arrange our template files on disk.</p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Warren Young for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>&#xa9; 2015, 2016 by Educational Technology Resources, licensed under
+<a href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0</a></p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

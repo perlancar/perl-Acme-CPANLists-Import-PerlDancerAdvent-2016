@@ -1,0 +1,233 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> State of the Ecosystem | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="state_of_the_ecosystem"></a>State of the Ecosystem</h1>
+
+<p>At least 15 new plugins saw their first CPAN release in 2016 bringing the
+total number of <a href="https://metacpan.org/module/Dancer2">Dancer2</a> plugins beyond the 70 mark.</p>
+<p>2016 also saw many plugins converted to the new <code>Plugin2</code> architecture. When
+using the new <a href="https://metacpan.org/module/Dancer2::Plugin">Dancer2::Plugin</a> plugins can now use other plugins and have
+their DSL directly available. At the last count 20 plugins have been released
+that use <code>Plugin2</code> but there is still work to do. If you want to help out
+checkout the related
+<a href="https://github.com/PerlDancer/Dancer2/issues/1078">GitHub issue</a>.</p>
+<p>Thankyou to everyone
+for contributing your code, and your time, to help make the Dancer2 ecosystem
+even better.</p>
+<h2><a name="new_plugins_in_2016"></a>New Plugins in 2016</h2>
+
+<h3><a name="auth__activedirectory"></a>Auth::ActiveDirectory</h3>
+
+<p>Mario Zieschang gave us <a href="https://metacpan.org/module/Dancer2::Plugin::Auth::ActiveDirectory">Dancer2::Plugin::Auth::ActiveDirectory</a> in April.
+Thanks Mario!</p>
+<p>I haven't played with this one myself as I don't have any Windows servers but
+it could be a good option for AD environments. See also
+<a href="https://metacpan.org/module/Dancer2::Plugin::Auth::Extensible::Provider::LDAP">Dancer2::Plugin::Auth::Extensible::Provider::LDAP</a>.</p>
+<h3><a name="auth__extensible__provider__imap"></a>Auth::Extensible::Provider::IMAP</h3>
+
+<p>In October Jason Lewis asked about an IMAP provider for
+<a href="https://metacpan.org/module/Dancer2::Plugin::Auth::Extensible">Dancer2::Plugin::Auth::Extensible</a> on the
+<a href="https://chat.mibbit.com/?channel=%23dancer&amp;server=irc.perl.org">#dancer IRC channel</a>.
+I like a challenge so decided to create one that afternoon. The result was
+released as: <a href="https://metacpan.org/module/Dancer2::Plugin::Auth::Extensible::Provider::IMAP">Dancer2::Plugin::Auth::Extensible::Provider::IMAP</a>.</p>
+<h3><a name="auth__extensible__provider__ldap"></a>Auth::Extensible::Provider::LDAP</h3>
+
+<p>Although this existed in a git repo, it had no tests, was AD-specific and was
+not released to CPAN. In October I released a shiny new
+<a href="https://metacpan.org/module/Dancer2::Plugin::Auth::Extensible::Provider::LDAP">Dancer2::Plugin::Auth::Extensible::Provider::LDAP</a> which tries to be a little
+more LDAP server agnostic (and also has a good number of tests).
+Thanks to J. Stebens (corecache) for feedback and testing it against OpenLDAP.</p>
+<h3><a name="auth__safe"></a>Auth::SAFE</h3>
+
+<p>Released whilst this article was being written on 29th November by &#x41a;&#x43e;&#x43d;&#x441;&#x442;&#x430;&#x43d;&#x442;&#x438;&#x43d;
+&#x41c;&#x430;&#x442;&#x44e;&#x445;&#x438;&#x43d; (KVENTIN), <a href="https://metacpan.org/module/Dancer2::Plugin::Auth::SAFE">Dancer2::Plugin::Auth::SAFE</a> brings authentication via
+Thomson Reuters SAFE SSO to your Dancer app.</p>
+<h3><a name="beforeroute"></a>BeforeRoute</h3>
+
+<p>Michael CH Vu released his first <a href="https://metacpan.org/module/Dancer2">Dancer2</a> version of his plugin
+<a href="https://metacpan.org/module/Dancer2::Plugin::BeforeRoute">Dancer2::Plugin::BeforeRoute</a> in August. This plugin allows you to add
+<code>before</code> hooks to specific routes.</p>
+<h3><a name="cart"></a>Cart</h3>
+
+<p>Need a simple and flexible cart in your <a href="https://metacpan.org/module/Dancer2">Dancer2</a> app? Need something that can
+work with a new or existing database? Maybe the new Cart plugin is for you.</p>
+<p>Andrew Baerg and Ruben Amortegui made the first release of
+<a href="https://metacpan.org/module/Dancer2::Plugin::Cart">Dancer2::Plugin::Cart</a> in July, and Andrew went on to give a talk about
+it at the <a href="https://perl.dance">Perl Dancer Conference</a> in Vienna in September.
+You can find a demo app that Andrew created for his talk
+<a href="https://github.com/pullingshots/Cart-Demo">on GitHub</a>.</p>
+<h3><a name="debugger"></a>Debugger</h3>
+
+<p>More than just a plugin, <a href="https://metacpan.org/module/Dancer2::Debugger">Dancer2::Debugger</a> brings Stevan Little's
+<a href="https://metacpan.org/module/Plack::Debugger">Plack::Debugger</a> to the <a href="https://metacpan.org/module/Dancer2">Dancer2</a> ecosystem with extra Dancer-specific
+panels.</p>
+<p>If you've ever used Marcel Grunauer's excellent <a href="https://metacpan.org/module/Plack::Middleware::Debug">Plack::Middleware::Debug</a>
+with your Dancer1 apps then this is what you'll want to use with <a href="https://metacpan.org/module/Dancer2">Dancer2</a>.</p>
+<p>I'm not completely happy with the internals of this thing but I needed it in
+a hurry and hopefully I'll find time soon for a cleanup. Released in April,
+you can find my conference talk
+<a href="https://www.perl.dance/talks/41-plack-debugger-meets-dancer2">here</a>.</p>
+<h3><a name="encryptid"></a>EncryptID</h3>
+
+<p>Rakesh Kumar Shardiwal's <a href="https://metacpan.org/module/Dancer2::Plugin::EncryptID">Dancer2::Plugin::EncryptID</a>, released in July,
+makes it easy to obfuscate internal IDs when using them in a URL given to
+users. Instead of seeing <code>http://example.com/item/42</code> users will instead
+see <code>http://example.com/item/c98ea08a8e8ad715</code>. This prevents nosy users
+from trying to iterate all items based on a simple ID in the URL.</p>
+<h3><a name="http__auth__extensible"></a>HTTP::Auth::Extensible</h3>
+
+<p>Theo van Hoesel released <a href="https://metacpan.org/module/Dancer2::Plugin::HTTP::Auth::Extensible">Dancer2::Plugin::HTTP::Auth::Extensible</a> in January.
+This plugin is a fork of <a href="https://metacpan.org/module/Dancer2::Plugin::Auth::Extensible">Dancer2::Plugin::Auth::Extensible</a> but with
+authentication via WWW-Authenticate header instead of using form + session.</p>
+<h3><a name="interchange6"></a>Interchange6</h3>
+
+<p>Part of the <a href="https://metacpan.org/module/Interchange6">Interchange6</a> e-commerce project,
+<a href="https://metacpan.org/module/Dancer2::Plugin::Interchange6">Dancer2::Plugin::Interchange6</a> was released in May. <a href="https://metacpan.org/module/Interchange6">Interchange6</a> is a
+project founded by long-time <a href="http://www.icdevgroup.org">Interchange</a> developer
+Stefan Hornburg (Racke).</p>
+<p>The Interchange6 project has so far released the following components:</p>
+<ul>
+<li><a name="item__a_href__https___metacpan_org_module_Interchange6__Schema__Interchange6__Schema__a_"></a><b><a href="https://metacpan.org/module/Interchange6::Schema">Interchange6::Schema</a></b>
+<p>A schema using <a href="https://metacpan.org/module/DBIx::Class">DBIx::Class</a> along with business logic.</p>
+</li>
+<li><a name="item__a_href__https___metacpan_org_module_Interchange6__Interchange6__a_"></a><b><a href="https://metacpan.org/module/Interchange6">Interchange6</a></b>
+<p>A cart built using <a href="https://metacpan.org/module/Moo">Moo</a>.</p>
+</li>
+<li><a name="item__a_href__https___metacpan_org_module_Dancer2__Plugin__Interchange6__Dancer2__Plugin__Interchange6__a_"></a><b><a href="https://metacpan.org/module/Dancer2::Plugin::Interchange6">Dancer2::Plugin::Interchange6</a></b>
+<p>Links the schema with the cart and provides keywords for use in your webshop.</p>
+</li>
+</ul>
+<p>We're still working on a demo shop, due out Christmas. ;-)</p>
+<h3><a name="minify"></a>Minify</h3>
+
+<p><a href="https://metacpan.org/module/Dancer2::Plugin::Minify">Dancer2::Plugin::Minify</a> is a wrapper for HTML::Packer, JavaScript::Packer
+and CSS::Packer. Released in April, thanks David Zurborg!</p>
+<h3><a name="pagehistory"></a>PageHistory</h3>
+
+<p>A port of my old Dancer1 plugin, <a href="https://metacpan.org/module/Dancer2::Plugin::PageHistory">Dancer2::Plugin::PageHistory</a> was released
+in June. The <code>add_to_history</code> keyword which is exported by this plugin allows
+you to add interesting items to the session-based history lists which are
+returned using the <a href="https://metacpan.org/module/history">history</a> keyword.</p>
+<h3><a name="pg"></a>Pg</h3>
+
+<p>Back in April, Lucas Tiago de Moraes released <a href="https://metacpan.org/module/Dancer2::Plugin::Pg">Dancer2::Plugin::Pg</a>, another
+twist on relational database plugins.</p>
+<p>See also: <a href="https://metacpan.org/module/Dancer2::Plugin::Database">Dancer2::Plugin::Database</a> and <a href="https://metacpan.org/module/Dancer2::Plugin::DBIC">Dancer2::Plugin::DBIC</a>.</p>
+<h3><a name="swagger2"></a>Swagger2</h3>
+
+<p>Something I'd like to play with, <a href="https://metacpan.org/module/Dancer2::Plugin::Swagger2">Dancer2::Plugin::Swagger2</a> was released by
+Daniel B&#xf6;hmer in March. This plugin creates routes directly from a Swagger
+(AKA OpenAPI) file. Neat.</p>
+<h3><a name="tail"></a>Tail</h3>
+
+<p>Released in August, Jack Bilemjian's <a href="https://metacpan.org/module/Dancer2::Plugin::Tail">Dancer2::Plugin::Tail</a> allows you to
+tail a file from within your <a href="https://metacpan.org/module/Dancer2">Dancer2</a> application.</p>
+<h3><a name="templateflute"></a>TemplateFlute</h3>
+
+<p><a href="https://metacpan.org/module/Dancer2::Plugin::TemplateFlute">Dancer2::Plugin::TemplateFlute</a>, along with its sister distro
+<a href="https://metacpan.org/module/Dancer2::Template::TemplateFlute">Dancer2::Template::TemplateFlute</a>, brings Racke's <a href="https://metacpan.org/module/Template::Flute">Template::Flute</a> forms
+to <a href="https://metacpan.org/module/Dancer2">Dancer2</a>. Released in May 2016, we needed this in order to port the
+<a href="https://perl.dance">Perl Dancer Conference</a> website code from Dancer1.</p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Peter Mottram for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>No copyright retained. Enjoy.</p>
+<p>2016 // Peter Mottram (SysPete) <code>&lt;peter@sysnix.com&gt;</code></p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

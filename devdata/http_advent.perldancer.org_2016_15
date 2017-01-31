@@ -1,0 +1,434 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> Optimizing Dancer2 PT. 4 | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="optimizing_dancer2_pt__4"></a>Optimizing Dancer2 PT. 4</h1>
+
+<p>After inspecting our stack and infrastructure, it is time to look into
+our code, inspecting patterns that can be improved in our attempt to
+speed up our applications.</p>
+<h2><a name="prevent_unnecessary_actions_with_constants"></a>Prevent unnecessary actions with constants</h2>
+
+<p>Many of us don't know that Perl supports constant folding, allowing
+it to reduce and completely eliminate the running of unnecessary
+code paths if you give it enough information.</p>
+<p>An example is the following code:</p>
+<pre class="prettyprint">use constant {
+    'DEBUG' =&gt; 0,
+};
+
+if ( DEBUG()) {
+    debug('This is a debug statement');
+}</pre>
+
+<p>Perl would know at this case to not even include the <code>debug</code> line,
+since it will certainly not be reached. You can also control that
+using an environment variable, to make this more useful:</p>
+<pre class="prettyprint">use constant {
+    'DEBUG' =&gt; $ENV{'MYAPP_DEBUG'},
+};
+
+if ( DEBUG() ) {
+    debug('This is a debug statement');
+}</pre>
+
+<p>This allows you to remove unnecessary lines, such as log statements
+that require debugging or a certain level or logging.</p>
+<h2><a name="proper_parameters_access"></a>Proper parameters access</h2>
+
+<p>Dancer2 introduced new parameter keywords: <code>route_parameters</code>,
+<code>query_parameters</code>, and <code>body_parameters</code>.</p>
+<p>Other than the problems when using <code>param</code> or <code>params</code> (review advent
+article about it), an additional small problem is that it will only
+return results after parsing all possible parameters. If you have a
+<b>GET</b> request but someone included body parameters (whether by accident
+or maliciously), they will be parsed when accessing <code>param</code> or <code>params</code>.</p>
+<p>However, by using the appropriate parameters keyword, Dancer2 will only
+parse the correct input.</p>
+<h2><a name="faster_parameters_access"></a>Faster parameters access</h2>
+
+<p>More importantly, all the new keyword represent the parameters using
+<a href="https://metacpan.org/module/Hash::MultiValue">Hash::MultiValue</a>. This means that you can access them in two ways:</p>
+<pre class="prettyprint"># no matter how many "name" was provided, you get a single one
+my $name = query_parameters-&gt;get('name');
+
+# no matter how many "name" was provided, you get an array
+my @all_names = query_parameters-&gt;get_all('name');</pre>
+
+<p>Usually we use only one value, no matter how many were provided. In
+such case, we can also use the parameters as a hash reference:</p>
+<pre class="prettyprint">my $name = query_parameters-&gt;get('name');
+
+# faster
+my $name = query_parameters-&gt;{'name'};</pre>
+
+<p>This will only work when we only wish to retrieve one value. It will
+not work when given multiple values. We will need to use <code>get_all</code>
+as shown before.</p>
+<h2><a name="avoid_slow_routing_syntax_"></a>Avoid slow routing syntax:</h2>
+
+<p>Dancer2 allows you to control how the flow of the program using various
+keywords, but the following two are far slower than how you would
+normally do it.</p>
+<p>It might be fun to use them, but it's definitely slower.</p>
+<ul>
+<li><a name="item__code_pass__code_"></a><b><code>pass</code></b>
+<p>We suggest avoiding the <code>pass</code> keyword. First, let us explain what it
+does.</p>
+<p>Let's assume we have two routes that will match two endpoints:</p>
+<pre class="prettyprint">get '/:action' =&gt; sub {...};
+
+get '/fail' =&gt; sub {...};</pre>
+
+<p>A request to <i>/fail</i> can be handled by both of these routes. While
+in Dancer2 it works by first-come first-serve, meaning the first route
+that matches will be the first served, you can still control this,
+if you wish.</p>
+<p>The <code>pass</code> keyword will allow you to pass the request to the next
+one in line. If a request does not <code>pass</code>, it will not reach the next
+one, and if there is no next request, the application will return a
+404.</p>
+<pre class="prettyprint">get '/:action' =&gt; sub {
+    my $action = route_parameters-&gt;{'action'};
+    if ( $action eq 'fail' ) {
+        # this will return from the route for you
+        pass;
+    }
+
+    # every action except 'fail'
+    ...
+};
+
+get '/fail' =&gt; sub {
+    # handle action 'fail'
+    ...
+};</pre>
+
+<p>However, while this seems pretty enough, it forces the request to
+go through the matching mechanism again, which can be completely
+avoided by having direct access using different mechanisms:</p>
+<ul>
+<li><a name="item_Reverse_the_routes"></a><b>Reverse the routes</b>
+<p>If we reverse the routing by having the more exact routes at the top,
+we will not need to match because they will no longer cause multiple
+matches:</p>
+<pre class="prettyprint">get '/fail' =&gt; sub {
+    # handle 'fail'
+    ...
+};
+
+get '/:action' =&gt; sub {
+    # anything other than 'fail' because it was already served
+    # no need for 'pass'
+    ...
+};</pre>
+
+</li>
+<li><a name="item_Merge_the_routes"></a><b>Merge the routes</b>
+<p>At the end of the day what we have is an <code>if</code> condition, and we
+could simply put that <code>if</code> as part of a single route:</p>
+<pre class="prettyprint">get '/:action' =&gt; sub {
+    my $action = route_parameters-&gt;{'action'};
+
+    if ( $action eq 'fail' ) {
+        # do the work...
+        ...
+
+        # or move it to a sub and call it:
+        return handle_fail_action(...);
+    }
+
+    ...
+};</pre>
+
+</li>
+</ul>
+</li>
+<li><a name="item__code_forward__code_"></a><b><code>forward</code></b>
+<p>The <code>forward</code> keyword is far stronger than <code>pass</code>. While <code>pass</code>
+simply says "Not it!" with the current request, <code>forward</code> creates a
+new request and passes it to the Dancer dispatcher to attempt to match
+it and serve it instead. Simply put, it provides an internal redirect.</p>
+<pre class="prettyprint">get '/fail/:user' =&gt; sub {...};
+
+get '/:action' =&gt; sub {
+    my $user   = query_parameters-&gt;{'user'};
+    my $action = route_parameters-&gt;{'action'};
+
+    if ( $action eq 'fail' ) {
+        forward "/fail/$user";
+    }
+};</pre>
+
+<p>Notice we receive a parameter from the query and send it then to
+another route that include two parts. It effectively created a new
+request and starts from the top. That is also why it is slow.</p>
+<p>It is better to handle this by either redirecting to the user or
+passing it to a subroutine that could be shared by both:</p>
+<pre class="prettyprint">use URI::Escape;
+
+sub _handle_fail {
+    my $user = shift;
+
+    # remember to avoid XSS!
+    my $safe_username = uri_escape($user);
+
+    ...
+}
+
+get '/fail/:user' =&gt; sub {
+    _handle_fail( query_parameters-&gt;{'user'} );
+};
+
+get '/:action' =&gt; sub {
+    my $action = route_parameters-&gt;{'action'};
+
+    if ( $action eq 'fail' ) {
+        return _handle_fail( query_parameters-&gt;{'user'} );
+    }
+};</pre>
+
+<p>Now there is no duplication of code and we only use one subroutine
+call instead of the entire dispatching engine.</p>
+</li>
+</ul>
+<h2><a name="unnecessary__code_before__code__hook"></a>Unnecessary <code>before</code> hook</h2>
+
+<p>There is a common observed pattern of utilizing the <code>before</code> hook
+when only some routes are required.</p>
+<p>An example of it is making sure we only serve a specific route
+securely. (If this seems contrived, it is taken from company code
+that was shared.)</p>
+<pre class="prettyprint">hook 'before' =&gt; sub {
+    # check the address of the request
+    if ( request-&gt;address ne '127.0.0.1' ) {
+        # provide a 404 when the user is not local
+        status 404;
+        halt(1);
+    }
+};
+
+get '/private' =&gt; sub {...};</pre>
+
+<p>We then realize that we accidentally blocked everything, so we add
+the specific route as another test.</p>
+<pre class="prettyprint">hook 'before' =&gt; sub {
+    if (   request-&gt;path eq '/private'
+        &amp;&amp; request-&gt;address ne '127.0.0.1' )
+    {
+        status 404;
+        halt(1);
+    }
+};
+
+get '/private' =&gt; sub {...};</pre>
+
+<p>There we go. However, the <code>before</code> route is called on <i>every</i>
+request and is thus expensive for no reason.</p>
+<p>We can handle this in several other, better ways:</p>
+<ul>
+<li><a name="item_Add_the_code_to_the_code_itself"></a><b>Add the code to the code itself</b>
+<pre class="prettyprint">get '/private' =&gt; sub {
+    request-&gt;address eq '127.0.0.1'
+        or send_error 404;
+    ...
+};</pre>
+
+<p>This is much more direct, but this might be a longer piece of code
+and also tedious to add to every route. Instead, we can write code
+that creates code.</p>
+</li>
+<li><a name="item_Decorate_each_route"></a><b>Decorate each route</b>
+<pre class="prettyprint">sub only_local {
+    my $cb = shift;
+    return sub {
+        request-&gt;address eq '127.0.0.1'
+            or send_error 'File not found', 404;
+
+        goto &amp;$cb;
+    };
+}
+
+get '/private' =&gt; only_local sub {
+    ...
+};</pre>
+
+<p>Here we only need to add <code>only_local</code> to every subroutine call,
+avoiding duplication and making clearer code that performs better.</p>
+<p>In fact, it is this technology that <a href="https://metacpan.org/module/Dancer2::Plugin::Auth::Tiny">Dancer2::Plugin::Auth::Tiny</a>
+uses for its syntax. It is fairly easy to create a plugin with it.</p>
+</li>
+</ul>
+<h2><a name="render_on_backend_without_layout"></a>Render on backend without layout</h2>
+
+<p>Originally, before AJAX, we rendered entire pages on every request.
+Then with AJAX, we only rendered parts of it and sent over structures
+to allow rendering it on the client side later on.</p>
+<p>However, in many cases it is still more affordable from a performance
+stand-point to render it in the backend.</p>
+<p>If the data is bigger than the rendering of it (containing information
+that is used in condition statements, in order to determine what to
+render) or if the rendering is heavy, it is far better to still render
+it on the server side. You can set the layout to make sure a template
+is rendered without a layout.</p>
+<pre class="prettyprint">get '/data/:user' =&gt; sub {
+    my $data = retrieve_data( route_parameters-&gt;{'user'} );
+    template 'data' =&gt; { 'user_data' =&gt; $data };
+};
+
+get '/' =&gt; sub {
+    my $user = session-&gt;{'id'};
+    my $data = retrieve_data($user);
+    template 'data' =&gt; { 'user_data' =&gt; $data };
+};</pre>
+
+<p>And you can, of course, split this further:</p>
+<pre class="prettyprint">sub _render_data {
+    my $user = shift;
+    my $data = retrieve_data($user);
+    template 'data' =&gt; { 'user_data' =&gt; $data };
+};
+
+get '/data/:user' =&gt; sub {
+    return _render_data( route_parameters-&gt;{'user'} );
+};
+
+get '/' =&gt; sub {
+    my $data = retrieve_data( session-&gt;{'id'} );
+    return _render_data($user);
+};</pre>
+
+<h2><a name="asynchronous_cleanups__where_possible_"></a>Asynchronous cleanups (where possible)</h2>
+
+<p>Often times we write code that generates data we need to clear and
+clean up. These cleanups take precious time in which the user is just
+waiting.</p>
+<p>There are some servers that support cleaning up stuff asynchronously,
+which means the user is done with the website, moved on, and the server
+will work in the background to clean up what we wanted. uWSGI is one
+web server that has supports for this ability.</p>
+<h2><a name="less_sugar"></a>Less sugar</h2>
+
+<p><a href="https://metacpan.org/module/Try::Tiny">Try::Tiny</a> is an often-used accurate, simple, clean, and recommended
+module to use when needing a `try`/`catch` pattern. As with many other
+sugar syntax modules, it is far less performant, and while being a good
+practice for most cases, when in need for speed, you might to avoid a
+some of these modules.</p>
+<p>Since this is probably one of the bigger costs, here's how you can
+perform a safe and accurate `try`/`catch` without <a href="https://metacpan.org/module/Try::Tiny">Try::Tiny</a>:</p>
+<pre class="prettyprint">eval {
+    run_action(); # this might die
+    1;            # make sure to result in true
+} or do { # did it not reach the "1" above?
+    my $error = $@;
+    handle_error($error);
+};</pre>
+
+<h2><a name="coming_next"></a>Coming next</h2>
+
+<p>Up until now we covered what you can do to optimize things, but we
+would also like to share the future plans we have for increasing our
+optimizations and improving the speed.</p>
+<p>Our last and final article in this series will focus on that.</p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Sawyer X for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>No copyright retained. Enjoy.</p>
+<p>Sawyer X.</p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

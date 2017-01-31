@@ -1,0 +1,240 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> Optimizing Dancer2 PT. 3 | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="optimizing_dancer2_pt__3"></a>Optimizing Dancer2 PT. 3</h1>
+
+<p>After improving our web server and web server configurations in our
+previous article, we can now dive deeper into our stack. There is much
+to gain by deciding how we configure our stack, what technologies we
+use, and how we architect our platform.</p>
+<h2><a name="offloading_tasks"></a>Offloading tasks</h2>
+
+<p>Have you ever implemented a queue system in a web application? Of
+course you have! We all have! However, this proves to be a common
+mistake that must be rectified if we seek to have a fast web
+application.</p>
+<p>Queues are not the only example of trying to accomplish as much as
+possible within the web application instead of offloading it to
+other components which are more suitable at their given task.</p>
+<ul>
+<li><a name="item_Queues"></a><b>Queues</b>
+<p>Queues are enticing to write since they seem simple at first. We
+<code>push</code> to an array, <code>pop</code> on the other side, and run.
+Unfortunately, a proper queue system needs to take into account
+working across data centers, journaling and crash recovery, and
+even multiple processes for work.</p>
+<p>We recommend using a proper queue or proper DB meant for storing
+and dealing with queues. You can use RabbitMQ for queuing or if
+you want to use a worker system, you can store your work in
+Redis.</p>
+<p>Either way, you shouldn't implement such a grant task yourself
+inside your web application. It just won't cut it.</p>
+</li>
+<li><a name="item_Scheduled_tasks__cron_jobs_"></a><b>Scheduled tasks (cron jobs)</b>
+<p>Many tasks are performed asynchronously in the web server since they
+take a long time to run. However, it makes them more fragile,
+error-prone, and opaque, making it hard to trace and debug.</p>
+<p>Instead, scheduled task runners are available on common operating
+systems.</p>
+</li>
+<li><a name="item_Caching"></a><b>Caching</b>
+<p>There is <a href="https://metacpan.org/module/Plack::Middleware::Cache">Plack::Middleware::Cache</a> available, but at the end
+of the day, caching can definitely be done better by any proper
+caching server.</p>
+<p>We recommend Varnish.</p>
+</li>
+</ul>
+<h2><a name="preloading_modules"></a>Preloading modules</h2>
+
+<p>Our web applications tend to use many modules, some of which quite
+heavy. Most web servers fork in order to handle multiple workers.
+But why waste the start-up time of heavy modules on each fork of the
+web server? This is what preloading is for.</p>
+<p>If you load modules before you start your web server, you can allow
+the web server to fork with the modules already loaded in memory,
+and to share that memory.</p>
+<p>While this saves a lot of memory, it also saves the CPU required
+on every fork generator in order to load the modules.</p>
+<pre class="prettyprint"># app.psgi
+use MyApp;
+
+# preloading
+use Moose ();
+use DBIx::Class ();
+use AnotherBigModule ();
+
+MyApp-&gt;to_app;</pre>
+
+<h2><a name="faster_headers_everywhere"></a>Faster headers everywhere</h2>
+
+<p>Handling headers is one of the most common tasks performed in a
+web request. It is done by the caching layer, the reverse proxy,
+the web server, and your application.</p>
+<p>The most common module in Perl to handle headers is the old
+<a href="https://metacpan.org/module/HTTP::Headers">HTTP::Headers</a>, and <i>old</i> is right. <a href="https://metacpan.org/module/Plack">Plack</a> moved to a faster
+version, aptly named <a href="https://metacpan.org/module/HTTP::Headers::Fast">HTTP::Headers::Fast</a>, which tries to maintain
+compatibility but improve the speed. It is about 20% faster, which
+is already a major benefit, since <a href="https://metacpan.org/module/Plack">Plack</a> an make many uses of
+headers.</p>
+<p>Dancer2 internally uses <a href="https://metacpan.org/module/HTTP::Headers::Fast">HTTP::Headers::Fast</a> in order to assure
+faster results, but you can take this one step further by changing
+what Dancer2 (and Plack) will use, along with any other component
+in your web application.</p>
+<p>If you load <a href="https://metacpan.org/module/HTTP::XSHeaders">HTTP::XSHeaders</a> early in your application, it will
+override the other HTTP libraries (namely <a href="https://metacpan.org/module/HTTP::Headers">HTTP::Headers</a> and
+<a href="https://metacpan.org/module/HTTP::Headers::Fast">HTTP::Headers::Fast</a>) and changes their code (and subsequently)
+any code that calls it) to a much higher performant C-based
+implementation of headers.</p>
+<pre class="prettyprint"># app.psgi
+use HTTP::XSHeaders;
+use MyApp;
+
+...</pre>
+
+<h2><a name="reduce_i_o_with_loggers_and_sessions"></a>Reduce I/O with loggers and sessions</h2>
+
+<p>Logging and session reading and writing are also frequently performed
+actions. It also involves I/O, writing to disk, or involve a network
+operation. Those can be slow.</p>
+<p>Make sure to maintain a useful logging level in your application,
+not writing at all levels, to prevent excessive writing to disk
+or network, and use a fast logger engine.</p>
+<p>Additionally, usse a memory-based session storage, not the <a href="https://metacpan.org/module/YAML">YAML</a>
+or <a href="https://metacpan.org/module/JSON">JSON</a> ones, since they both write to disk and serialize - two
+unnecessary expensive actions.</p>
+<h2><a name="faster_templating"></a>Faster templating</h2>
+
+<p>If you're not writing a web service, you are likely to be using
+templates. Rendering a template is a simple task, but when using
+templating frequently, it starts to take more time.</p>
+<p>If speed is crucial, it is a key point to improve. We recommend
+using <a href="https://metacpan.org/module/Text::XSlate">Text::XSlate</a> for a blazing fast templating system.</p>
+<h2><a name="middlewares_aren_t_everything"></a>Middlewares aren't everything</h2>
+
+<p>Middlewares are quite beneficial. They allow use to split the
+work between layers and keep layers simple and thin. However, they
+are much more expensive than we realize.</p>
+<p>Each middleware call requires two additional subroutine calls
+on every request. While calling subroutines in perl 5.24 has been
+considerably improved in speed (30% faster!), it is still a cost
+worth realizing and possibly amending.</p>
+<p>In many cases middlewares need access to information you already
+have in your application. Benchmark before you either decide to
+move to middleware, or when contemplating removing them.</p>
+<h2><a name="reduce_assets_cost"></a>Reduce assets cost</h2>
+
+<p>Serving our assets through a CDN or other caching server, or even
+through our reverse proxy is faster, but we take this one step
+further by improving the asset files themselves.</p>
+<p>For images, you can reduce the size and amount of required file
+transfers by using sprites.</p>
+<p>For Javascript files, you can both concatenate the files together
+and reduce their size by minifying them.</p>
+<h2><a name="coming_next"></a>Coming next</h2>
+
+<p>Our next article in this series will deal directly with our application
+code. How can we write faster code in order to speed up our
+application?</p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Sawyer X for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>No copyright retained. Enjoy.</p>
+<p>Sawyer X.</p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

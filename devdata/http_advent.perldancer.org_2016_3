@@ -1,0 +1,189 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> Medium-Scale Dancer, Part 1: Modules | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="medium_scale_dancer__part_1__modules"></a>Medium-Scale Dancer, Part 1: Modules</h1>
+
+<h2><a name="or__how_to_get_beyond_small_scale_in_dancer_application_design"></a>Or: How to Get Beyond Small-Scale in Dancer Application Design</h2>
+
+<p>When you generate a Dancer app with <code>dancer2 -a App</code>, you get a very
+nicely structured and useful starting point. As long as your app remains
+fairly small, you can work with this structure as-is clear through to
+completion. In that sense, the generated app is production-ready.</p>
+<p>The problem comes when you get to thousands of lines of Perl code,
+dozens of templates, and dozens of routes, stretching the stock app
+design beyond its natural limits. This series of articles gives you one
+way to extend beyond this base.</p>
+<p>I say "one way" because Dancer is a policy-free web application
+framework. Its designers purposely avoid making whole classes of design
+decisions for you. That means that Dancer not only doesn&#x2019;t force you to
+design your app the "right way," by its creators' lights, the framework
+rarely even gives hints about what the right way might be. Dancer
+prefers to present itself as a box of tools, which you are free to use
+as you see fit.</p>
+<p>The design presented here is working quite well for us, so we think it
+is worthy of emulation, but we do not expect that it will work for all
+medium-scale web applications. Think of it as a mutually consistent
+collection of design ideas, rather than a prescription of the One True
+Way to design a Dancer application.</p>
+<h2><a name="the_generated_files"></a>The Generated Files</h2>
+
+<p>When you say <code>dancer2 -a App</code> at the command line, you get a few dozen
+files. Several of these files contain Perl code, but only one of those
+is interesting for the purposes of this article.</p>
+<p>We're setting <code>bin/app.psgi</code> and <code>public/dispatch.*</code> aside as
+"uninteresting" here because we recommend that you leave these files
+as-is. None of your app-specific Perl code should go in these files.</p>
+<p>We're also ignoring <code>Makefile.PL</code> since it's part of the app's build
+system, not part of the app proper.</p>
+<p>That only leaves <code>lib/App.pm</code>. For small-scale apps, simply piling all
+of your Dancer-related app code into this file is just fine. Up to about
+one or two thousand lines of code, you can just use it as-is, for the
+same reason that a thousand-line monolithic Perl script is fine in other
+contexts, too.</p>
+<h2><a name="extending_the_stock_scheme"></a>Extending the Stock Scheme</h2>
+
+<p>One of the nicest things about Dancer is that the generated startup code
+adds the app's <code>lib</code> directory to the Perl module path. That leads to
+an obvious solution to the problem of too much code in a single file:
+break it out into other <code>*.pm</code> files in the <code>lib</code> directory. But how,
+exactly?</p>
+<p>I recommend following the example of CPAN, with a structure like the
+following:</p>
+<pre class="prettyprint">lib/App.pm                 # your app's main module
+lib/App/MajorFeature.pm    # implementation of a major app feature
+lib/App/OtherFeature.pm    # as many feature impl files as you need
+lib/App/API.pm             # if your app has a REST API, put it here
+lib/App/Const.pm           # maybe you have some app-wide constants
+lib/App/Utility.pm         # every big app has a "junk drawer" module</pre>
+
+<p>Then in <code>lib/App.pm</code>, you <code>use</code> all of these modules:</p>
+<pre class="prettyprint">use App::MajorFeature;
+use App::OtherFeature;
+use App::API;
+use App::Const;
+use App::Utility;</pre>
+
+<p>How you design these modules is up to you. The
+<a href="http://stackoverflow.com/questions/410359/how-can-i-learn-to-write-well-structured-programs-in-perl">standard rules</a>
+for well-structured Perl application design apply.</p>
+<p>There is one Dancer2-specific thing to beware of here, though: you must
+<a href="http://advent.perldancer.org/2014/10">set the <code>appname</code> property on the sub-modules</a>. If you
+don't, each sub-module will be considered a separate Dancer2
+application, which puts unwanted barriers between the modules.</p>
+<p>(Dancer1 didn't have this requirement because it didn't have any
+concept of multiple apps within a single Dancer instance.)</p>
+<p>When it comes time to break <code>lib/App.pm</code> up into multiple modules, I
+recommend that you move almost all Perl code into one of these modules,
+leaving only application initialization code in the top-level module.</p>
+<p>(This, by the way, is why we don't need to modify <code>bin/app.psgi</code>: since
+it pretty much just loads Dancer and then calls <code>lib/App.pm</code>, there is
+no point in splitting app initialization code across the two files. Let
+<code>bin/app.psgi</code> remain a tiny little glue file that exists merely to
+make <a href="http://plackperl.org/">PSGI</a> happy.)</p>
+<p>Your initial refactoring of <code>lib/App.pm</code> will likely leave all the
+route definitions behind, which is fine because refactoring the routes
+is the subject of the
+next article in this series.</p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Warren Young for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>&#xa9; 2015, 2016 by Educational Technology Resources, licensed under
+<a href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0</a></p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

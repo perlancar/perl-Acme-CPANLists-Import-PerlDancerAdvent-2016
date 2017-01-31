@@ -1,0 +1,231 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> New parameters keywords | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="new_parameters_keywords"></a>New parameters keywords</h1>
+
+<p>A common problem and difficulty with web programming is incorrect
+parameters handling. We usually don't spend much time thinking about
+it, until things break. Dancer2 has added special keywords to help you
+out with this.</p>
+<h2><a name="the_problem"></a>The problem</h2>
+
+<p>First, let's clarify what is the issue we come across.</p>
+<p>When handling parameters, we make several assumptions. Our first
+assumption is that all parameters are one big pile of information.
+Parameters come in two forms, and Dancer2's route spec adds another:
+<b>query</b>, <b>body</b>, and <b>route</b>.</p>
+<p>When we call <code>params</code>, we retrieve a parameter from the collection of
+all of these parameter values put together, which could be clobbered
+values, if they are provided multiple times:</p>
+<pre class="prettyprint">post '/' =&gt; sub {
+    # is this from a query or from the body?
+    my $name = params-&gt;{'name'};
+};</pre>
+
+<p>We can control the source of the parameter values as the parameter to <code>params</code>:</p>
+<pre class="prettyprint">get '/' =&gt; sub {
+    # positively from the query
+    my $name = params('query')-&gt;{'name'};
+};</pre>
+
+<p>A much bigger mistake we make is assuming that parameters are provided
+as single values. Thus, we simply retrieve the parameter value:</p>
+<pre class="prettyprint">post '/upload' =&gt; sub {
+    my $filename = params('body')-&gt;{'filename'};
+};</pre>
+
+<p>If you've been bitten before, this is already askew to you. What
+happens if the <b>name</b> parameter was provided twice? Of course, we can
+write appropriate code for this as well:</p>
+<pre class="prettyprint">post '/upload' =&gt; sub {
+    my @filenames = @{ params('body')-&gt;{'filename'} };
+};</pre>
+
+<p>However, we do not know how many were provided. It is possible that our
+form only contains a single parameter entry but a user has maliciously
+has sent two or more, or misused our API by mistake. We are then forced
+to verify this by writing code that checks for both scenarios:</p>
+<pre class="prettyprint">post '/upload' =&gt; sub {
+    my @filenames;
+    if ( ref params('body')-&gt;{'filename'} ) {
+        if ( ref params('body')-&gt;{'filename'} eq 'ARRAY' ) {
+            @filenames = ( params('body')-&gt;{'filename'} );
+        } else {
+            # Will not happen
+        }
+    } else {
+        @filenames = @{ params('body')-&gt;{'filename'} };
+    }
+};</pre>
+
+<p>That is indeed a lot to take in. We also end up with an array of
+filenames, even if we only care about one. Let's write more succinct
+and accurate code for this:</p>
+<pre class="prettyprint">post '/upload' =&gt; sub {
+
+    # if we assumed only one filename
+    my $filename
+        = ref params('body')-&gt;{'filename'}
+        ? params('body')-&gt;{'filename'}-&gt;[-1] # assuming last is ok
+        : params('body')-&gt;{'filename'};
+
+    # if we assumed multiple possible filenames
+    my @filenames
+        = ref params('body')-&gt;{'filename'}
+        ? @{ params('body')-&gt;{'filename'} }
+        : ( params('body')-&gt;{'filename'} );
+};</pre>
+
+<h2><a name="the_solution"></a>The solution</h2>
+
+<p>We have introduced three new keywords to help you handle both of these
+issues easily: <code>route_parameters</code>, <code>query_parameters</code>, and
+<code>body_parameters</code>. Let's explore them.</p>
+<p>Firstly, you may notice that they already provide a clear indication of
+the source of the parameters using their name. This is to be clear and
+declarative on what you want to retrieve, instead of assuming the
+jumble clobbered combination would be fine.</p>
+<p>Secondly, each one provides you with a <a href="https://metacpan.org/module/Hash::MultiValue">Hash::MultiValue</a> object which
+can either be used as a hash, or as an object that can retrieve the
+amount of values declaratively.</p>
+<p>If we would like to make sure we always have a single value for a
+parameter, we simply either call it as a hash key or using the
+appropriate method:</p>
+<pre class="prettyprint">post '/upload' =&gt; sub {
+    my $filename = body_parameters-&gt;get('filename');
+
+    # or
+
+    my $filename = body_parameters-&gt;{'filename'};
+};</pre>
+
+<p>If a single filename is provided, this will be the value. If multiple
+values are sent by the user (either on purpose or by mistake), you will
+always receive the last one. Does it matter? No, since the user was
+supposed to only send one anyway.</p>
+<p>But what happens when we want multiple values? That's trickier because
+we might still only get one value, but we can <i>possibly</i> get multiple
+ones. With these new keywords, it's just as simple:</p>
+<pre class="prettyprint">post '/upload' =&gt; sub {
+    # we support multiple filenames
+    # maybe none, maybe one, maybe more
+    my @filenames = body_parameters-&gt;get_all('filename');
+};</pre>
+
+<p>This will always return multiple values, no matter how many were
+actually sent.</p>
+<p>You can, of course, use all of them at once, despite them usually not
+being combined in HTTP:</p>
+<pre class="prettyprint">post '/upload/:entity' =&gt; sub {
+    my $entity    = route_parameters-&gt;{'entity'};
+    my $user      = query_parameters-&gt;{'user'};
+    my @filenames = body_parameters-&gt;get_all('filename');
+    ...
+};</pre>
+
+<p>We wholeheartedly recommend using these new keywords instead of calling
+the other keywords such as <code>param</code> and <code>params</code>. They make your code
+clearer and smarter.</p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Sawyer X for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>No copyright retained. Enjoy.</p>
+<p>Sawyer X.</p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

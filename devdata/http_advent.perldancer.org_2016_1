@@ -1,0 +1,288 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> Another year of dancing | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="another_year_of_dancing"></a>Another year of dancing</h1>
+
+<p>It's been a while since we had an advent calendar. It's about time.</p>
+<p>You might be wondering what we've been up to in the last year. Well,
+a lot.</p>
+<ul>
+<li><a name="item_New_members"></a><b>New members</b>
+<p>Please welcome two new core team members:</p>
+<ul>
+<li><a name="item_Peter___SysPete__Mottram"></a><b>Peter (@SysPete) Mottram</b>
+<p>If you have raised an issue, you have likely interacted with Peter. He
+takes care of the queue, co-organizes the conferences, and managed the
+entire transition to the new plugin architecture, helping authors by
+testing their code and transitioning the syntax.</p>
+<p>Oh, new plugin architecture? More to follow.</p>
+</li>
+<li><a name="item_Jason___CromeDome__Crome"></a><b>Jason (@CromeDome) Crome</b>
+<p>Jason Crome started by fixing up the documentation and moved on to help
+with the releases themselves. If you looked up Dancer2 recently on CPAN,
+you probably recognize his picture by now. :)</p>
+<p>Jason's handling of the releases allows us to maintain a higher quality
+of releases, including timing, announcements, and double checking the
+important Pull Requests and issues are resolved prior to the release.</p>
+</li>
+</ul>
+</li>
+<li><a name="item_New_features"></a><b>New features</b>
+<ul>
+<li><a name="item_Asynchronous_streaming_responses"></a><b>Asynchronous streaming responses</b>
+<p>We have finally introduced the ability to provide asynchronous and
+streaming responses. This allows you to do various interesting things,
+but it can be quite complex.</p>
+<p>This topic has its own article in this year's advent calendar. Stay
+tuned!</p>
+</li>
+<li><a name="item__code_prefix__code__supports_the_route_spec"></a><b><code>prefix</code> supports the route spec</b>
+<p>The <code>prefix</code> syntax allowed you to reduce the repeated parts of strings,
+and it now supports the full spec in order to allow you to reduce the
+pattern strings:</p>
+<pre class="prettyprint">prefix '/:action' =&gt; sub {
+    get '/:entity' =&gt; sub {...};
+};</pre>
+
+</li>
+<li><a name="item__code_send_file__code__is_now_streaming"></a><b><code>send_file</code> is now streaming</b>
+<p>The <code>send_file</code> keyword will now also stream the response asynchronously
+if it's available. You don't need to think about it. You don't even know
+it does it, but it does, automatically, or you. :)</p>
+</li>
+<li><a name="item_New_keywords"></a><b>New keywords</b>
+<ul>
+<li><a name="item_New_parameters_keywords"></a><b>New parameters keywords</b>
+<p>We have introduced new keywords to retrieve information from the route,
+query, or body parameters. They help handle common incorrect and risky
+patterns.</p>
+<p>They will also appear in their own advent article. Stay tuned!</p>
+</li>
+<li><a name="item_New_header_keywords"></a><b>New header keywords</b>
+<p>Noticing we only have headers to handle the response headers, we have
+introduced several keywords to help you handle the request headers.</p>
+<ul>
+<li><a name="item__code_request_header__code__"></a><b><code>request_header</code>.</b>
+<p>Return the request header.</p>
+</li>
+<li><a name="item__code_response_header__code__"></a><b><code>response_header</code>.</b>
+<p>A more explicit alternative to <code>header</code>.</p>
+</li>
+<li><a name="item__code_response_headers__code__"></a><b><code>response_headers</code>.</b>
+<p>A more explicit alternative to <code>headers</code>.</p>
+</li>
+<li><a name="item__code_push_response_header__code__"></a><b><code>push_response_header</code>.</b>
+<p>A more explicit alternative to <code>push_header</code>.</p>
+</li>
+</ul>
+<p>You will notice you cannot <i>push</i> a request header. This is on purpose,
+since request headers should not change, they only represent the request
+you received.</p>
+<p>(We might eventually deprecate the general <code>header</code> and <code>push_header</code>
+keywords.)</p>
+</li>
+<li><a name="item__code_send_as__code_"></a><b><code>send_as</code></b>
+<p>The <code>send_as</code> keyword gets around the serializer.</p>
+<p>Interested? It has its own advent article!</p>
+</li>
+<li><a name="item_Local_config_files"></a><b>Local config files</b>
+<p>You can now provide additional local configuration files that will be
+loaded, but can be kept out of a version control repository.</p>
+<p>Stay tuned for an article on that!</p>
+</li>
+<li><a name="item_New_config_option__code_change_session_id__code_"></a><b>New config option <code>change_session_id</code></b>
+<p>We have added a configuration option for improved security in cookies.
+We will feature an article on them as well.</p>
+</li>
+<li><a name="item_New_keywords__code_encode_json__code____code_decode_json__code_"></a><b>New keywords <code>encode_json</code>, <code>decode_json</code></b>
+</li>
+</ul>
+</li>
+<li><a name="item__code_template__code__keyword_global"></a><b><code>template</code> keyword global</b>
+<p>The <code>template</code> keyword can now be used outside a request. The relevant
+request-specific variables will not be available (since it's outside a
+request), but everything else will be available.</p>
+</li>
+<li><a name="item__code_eval__code__shim"></a><b><code>eval</code> shim</b>
+<p>You now have a shim for <code>eval</code> behavior. If you need such an option,
+you already understand what it means.</p>
+</li>
+<li><a name="item_Support_304_Not_Modified"></a><b>Support 304 Not Modified</b>
+<p>We properly support <b>304 Not Modified</b> when serving static files.</p>
+</li>
+</ul>
+</li>
+<li><a name="item_New_documentation"></a><b>New documentation</b>
+<p>We have revamped our documentation.</p>
+<p>The original documentation had irrelevant parts from Dancer 1 which no
+longer apply to Dancer 2, outdated components, unclear and confusing
+descriptions, and quite honestly, were hard to navigate.</p>
+<p>The rewritten documentation focus on clarifying how a Dancer 2 program is
+constructed, the definitions we use and what they mean, the important
+keywords, and how to use the syntax.</p>
+<p>It does not delve into deprecated patterns, nor does it explain it. The
+reasoning is that you could find it if you search, but we don't want to
+teach you what you shouldn't be doing.</p>
+<p>Documentation is a live project at any given time and our documentation
+is no different. This means we always need additional help with it. If you
+find something to improve, please let us know. We would appreciate your
+help.</p>
+</li>
+<li><a name="item_Memory_leaks_sealed"></a><b>Memory leaks sealed</b>
+<p>We have become better at identifying memory leaks and resolved a few
+important ones. We've also added various tests to improve our detection,
+which so far yield no additional ones.</p>
+</li>
+<li><a name="item_Speedups"></a><b>Speedups</b>
+<p>Prompted by a user mentioning they still use Dancer 1 because it is faster,
+we have pushed hard and sped up Dancer 2 by quite a bit. It now does not
+match Dancer 1, but surpasses it.</p>
+<p>Here are some of the specific work we did:</p>
+<ul>
+<li><a name="item_Optimized_routing"></a><b>Optimized routing</b>
+<p>The routing itself has been optimized. We have a few more plans for this
+part, but it is now faster and better.</p>
+</li>
+<li><a name="item_Fewer_layers__fewer_dependencies"></a><b>Fewer layers, fewer dependencies</b>
+<p>We removed various layers (such as Middlewares) and removed some
+dependencies in order to get more direct access to faster components.</p>
+<p>We're learning where we can push more against abstractions and when we need
+to use them despite possible slower performance.</p>
+</li>
+<li><a name="item_Better_request_object"></a><b>Better request object</b>
+<p>Our request object has been rewritten. It was originally our own custom
+object, written from scratch, but now it subclasses the useful
+<a href="https://metacpan.org/module/Plack::Request">Plack::Request</a> while adding Dancer-specific bits or components that were
+rejected from being included in the basic Plack class.</p>
+</li>
+<li><a name="item_Faster_headers"></a><b>Faster headers</b>
+<p>We now internally use a faster header library, which is also used by Plack
+itself: <a href="https://metacpan.org/module/HTTP::Headers::Fast">HTTP::Headers::Fast</a>. We recommend using <a href="https://metacpan.org/module/HTTP::XSHeaders">HTTP::XSHeaders</a>
+which we co-authored, which will speed your headers substantially.</p>
+</li>
+<li><a name="item_Faster_cookies"></a><b>Faster cookies</b>
+<p>We will optionally use <a href="https://metacpan.org/module/HTTP::XSCookies">HTTP::XSCookies</a> if it's available in order to
+speed up the cookie handling.</p>
+</li>
+<li><a name="item_Faster_serializers_and_config_loader"></a><b>Faster serializers and config loader</b>
+<p>The JSON serializer will use <a href="https://metacpan.org/module/JSON::MaybeXS">JSON::MaybeXS</a> which will optionally use
+an XS implementation of <a href="https://metacpan.org/module/JSON">JSON</a>, if available.</p>
+</li>
+</ul>
+</li>
+<li><a name="item_DancerConf_2015_and_DancerConf_2016"></a><b>DancerConf 2015 and DancerConf 2016</b>
+<p>We have held two conferences over the last two years.</p>
+<p>While we're still working on the videos for DancerConf 2016, you can
+already find the videos for DancerConf 2015 on
+<a href="https://www.youtube.com/watch?v=UbU5R-SHbDE&amp;list=PLf1KDvMbyeCQq4mkMt8jDPzS9uPUX_mNo">YouTube!</a>.</p>
+</li>
+<li><a name="item_New_plugin_architecture"></a><b>New plugin architecture</b>
+<p>The plugin architecture in Dancer 2 was one of the big remaining weak
+points. We had to resolve it.</p>
+<p>It had now been completely rewritten, and it has its own advent article
+in this calendar!</p>
+</li>
+</ul>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Sawyer X for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>No copyright retained. Enjoy.</p>
+<p>Sawyer X.</p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

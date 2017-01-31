@@ -1,0 +1,244 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> Configuring Your Dancer Applications | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="configuring_your_dancer_applications"></a>Configuring Your Dancer Applications</h1>
+
+<p>It's been a really exciting year for Dancer2 (and an even more exciting two
+years since the last Advent calendar!), and one of the many things
+that's been improved is the configuration of Dancer2 applications. While
+some configuration oddities have been addressed, some additional conveniences
+have been added as well. Let's get started and explore what's changed!</p>
+<h2><a name="the_basics"></a>The Basics</h2>
+
+<p>Let's assume you are building an application that is contained in a directory
+named <i> appdir/</i>. The easiest way to configure the application there is with
+a simple <i> config.yml</i>:</p>
+<pre class="prettyprint">appname: mytestapp
+
+plugins:
+    Debugger:
+        enabled: 1
+    Auth::Tiny:
+        login_route: '/auth/login'</pre>
+
+<p>You are not limited to YAML, however. JSON works just as well:</p>
+<pre class="prettyprint">{
+    "appname": "mytestapp",
+    "plugins": {
+        "Debugger": {
+             "enabled": 1
+        },
+        "Auth::Tiny": {
+            "login_route": "/auth/login"
+        }
+    }
+}</pre>
+
+<p>In fact, any file format that can be read by <a href="https://metacpan.org/module/Config::Any">Config::Any</a> can be used for
+your application's config file. TIMTOWTDI!</p>
+<p><b>Note:</b> The examples that follow assume a YAML file format, but
+rest assured that these same techniques work with any configuration file
+format supported by Dancer2.</p>
+<h2><a name="some_potential_problems"></a>Some Potential Problems</h2>
+
+<p>In Dancer1, YAML was the only supported format, and as such, establishing a
+set order in which configuration files were read was pretty easy: <i>config.yml</i>
+followed by <i>environments/$environment_name.yml</i>. Since Dancer2 supports
+multiple file formats, the configuration file loader looks for all files whose
+name starts with <i>config</i> and merges the results together, and the order in
+which they are merged is dependent upon the order in which <a href="https://metacpan.org/module/Config::Any">Config::Any</a> tells
+us what file types it supports. This is not ideal because there is no reliable
+order in which our configuration files are read - there is no guarantee that
+<i>config.yml</i> is read before <i>config.json</i>... That's pretty scary in a
+production environment!</p>
+<p>To resolve this potential gotcha, set the <code>DANCER_CONFIG_EXT</code> environment
+variable to the file extension that you wish to use for your configuration
+files. For example:</p>
+<pre class="prettyprint">DANCER_CONFIG_EXT=json</pre>
+
+<p>If this variable is set, no other type of configuration file will be read, <b>only</b>
+JSON files. Dancer2 will be nice and let you know if there are other
+configuration files of other formats present, however.</p>
+<h2><a name="creating_local_overrides"></a>Creating Local Overrides</h2>
+
+<p>Sometimes you will have local overrides for or additions to certain settings
+found in your <i>config.yml</i> file, such as database settings, that you do not
+want to commit to your version control system. Thankfully, Dancer2 accounts
+this by letting you add a file called <i>config_local.yml</i>. Local configuration
+files are always processed after the files they are named for; that is to say
+that <i>config.yml</i> is always processed first, followed by <i>config_local.yml</i>.</p>
+<p>So let's say that your <i>config.yml</i> is the one above, and your <i>config_local.yml</i>
+contains this:</p>
+<pre class="prettyprint">DBIC:
+    default:
+        dsn: dbi:Pg:dbname=my_db
+        schema_class: My::Schema
+        user: dbuser
+        password: dbpass
+        options:
+            RaiseError: 1
+            PrintError: 1</pre>
+
+<p>Effectively, your running configuration would be this:</p>
+<pre class="prettyprint">appname: mytestapp
+
+plugins:
+    Debugger:
+        enabled: 1
+    Auth::Tiny:
+        login_route: '/auth/login'
+    DBIC:
+        default:
+            dsn: dbi:Pg:dbname=my_db
+            schema_class: My::Schema
+            user: dbuser
+            password: dbpass
+            options:
+                RaiseError: 1
+                PrintError: 1</pre>
+
+<p>If you've converted to Dancer2 from Catalyst, this configuration technique
+should be familiar to you.</p>
+<h2><a name="configuring_for_multiple_deployment_environments"></a>Configuring for Multiple Deployment Environments</h2>
+
+<p>In reality, your local development settings will likely differ from shared
+development server settings, which will likely be different than staging
+or production environment settings. To help you with this, Dancer2 lets you
+specify your runtime environment when running your application:</p>
+<pre class="prettyprint">DANCER_ENVIRONMENT=staging plackup bin/mytestapp.psgi</pre>
+
+<p>This tells Dancer2 to load <i>environments/staging.yml</i> after <i>config.yml</i> and,
+if it exists, <i>config_local.yml</i>.</p>
+<p>As with the previous example, the configuration files are merged in order, with
+settings in <i>environments/staging.yml</i> taking precedence over all others. If
+you had a <i>environments/staging_local.yml</i> file, it would get read and merged
+after all other files.</p>
+<h2><a name="one_final_example__read_all_the_files_"></a>One Final Example: Read All the Files!</h2>
+
+<p>If you are using YAML-based configuration files only, and are launching an
+application in a production environment, these settings:</p>
+<pre class="prettyprint">DANCER_CONFIG_EXT=yml
+DANCER_ENVIRONMENT=production</pre>
+
+<p>will read the following files (for sake of illustration, let's assume you use
+every one of these files):</p>
+<pre class="prettyprint">appdir/config.yml
+appdir/config_local.yml
+appdir/environments/production.yml
+appdir/environments/production_local.yml</pre>
+
+<p>Settings found in the last file merged <b>always</b> takes precedence, followed by
+settings found in the next most recently read file, and so on.</p>
+<h2><a name="debugging_configuration_issues"></a>Debugging Configuration Issues</h2>
+
+<p>If you are ever unsure what order configuration files are being processed in,
+setting the environment variable <code>DANCER_CONFIG_VERBOSE=1</code> prior to
+launching your application will show you the order in which files have been
+loaded.</p>
+<h2><a name="wrapping_up"></a>Wrapping Up</h2>
+
+<p>Dancer2 developers gained a lot of flexibility in how to to configure their
+applications in 2016. The core team would like to give a shout-out to Jonathan
+Scott Duff (aka perlpilot) for his work in making this possible.</p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Jason A. Crome (CromeDome) <code>cromedome@cpan.org</code>
+for the Perl Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>No copyright retained. Enjoy.</p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

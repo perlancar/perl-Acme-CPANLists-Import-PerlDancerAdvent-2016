@@ -1,0 +1,358 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> Exception handling, error logging and user messages made easy | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="exception_handling__error_logging_and_user_messages_made_easy"></a>Exception handling, error logging and user messages made easy</h1>
+
+<h2><a name="introduction"></a>Introduction</h2>
+
+<p>Have you ever experienced any of the following when writing your Dancer
+application?</p>
+<ul>
+<li><a name="item_Found_that_handling_user_errors_involved_writing_a_lot_of_code"></a><b>Found that handling user errors involved writing a lot of code</b>
+</li>
+<li><a name="item_Wanted_to_log_messages_from_a_module__without_that_module_depending_on_Dancer2"></a><b>Wanted to log messages from a module, without that module depending on Dancer2</b>
+</li>
+<li><a name="item_Wanted_flexibility_on_sending_messages_to_the_user__to_the_system__or_both"></a><b>Wanted flexibility on sending messages to the user, to the system, or both</b>
+</li>
+<li><a name="item_Found_yourself_writing_the_same_code_in_every_application_in_order_to_send_messages_to_a_template"></a><b>Found yourself writing the same code in every application in order to send messages to a template</b>
+</li>
+<li><a name="item_Wanted_a_clean_way_to_handle_500_errors__whilst_getting_notified_as_the_system_administrator"></a><b>Wanted a clean way to handle 500 errors, whilst getting notified as the system administrator</b>
+</li>
+</ul>
+<p><a href="https://metacpan.org/module/Dancer2::Plugin::LogReport">Dancer2::Plugin::LogReport</a> combined with <a href="https://metacpan.org/module/Dancer2::Logger::LogReport">Dancer2::Logger::LogReport</a> are
+designed to do all of the above, and more.  Although the 2 modules can be used
+separately, it's recommended to use them both together.</p>
+<h2><a name="getting_started"></a>Getting Started</h2>
+
+<p>Let's get started by adding the 2 modules to a Dancer2 app:</p>
+<pre class="prettyprint"># In your route handler
+package MyApp;
+use Dancer2;
+use Log::Report ();
+use Dancer2::Plugin::LogReport;
+
+# In your config
+logger: LogReport</pre>
+
+<p>So, what does this give us as standard? Let's have a look:</p>
+<ul>
+<li><a name="item_Default_console_logging"></a><b>Default console logging</b>
+<p>By default, the logger will continue logging to STDERR. The formatting will be
+different, but that can be configured later.  It's worth noting that by default
+debug messages will not be shown, as the default verbosity is a higher
+threshold. The threshold can be changed, see the <a href="https://metacpan.org/module//Dispatchers">/Dispatchers</a> section below.</p>
+</li>
+<li><a name="item_Additional_logging_keywords"></a><b>Additional logging keywords</b>
+<p>We have some additional logging levels. Given that Dancer already provides us
+with 5, you might think this unnecessary. The extra levels give us a really handy
+feature though: we can differentiate between messages that we would normally want
+to send to the user, and messages that we would normally want sent to the system. For
+example, we can now do:</p>
+<pre class="prettyprint"># Send a routine notice to the end user
+notice "Hey user, I thought you might want to know this"
+
+# Tell the user something has been successful
+success "Your changes have been saved"
+
+# Warn the user (not fatal)
+mistake "You may not have wanted to use that setting"
+
+# Tell the user an error has happened (fatal)
+error "You can't use that option"
+
+# Bork (also fatal)
+panic "This really should not happen in our app"
+
+# Log a debug message
+trace "Started function foo"</pre>
+
+<p>But where do these messages go? Read on.</p>
+</li>
+<li><a name="item_Messages_are_saved_in_the_session"></a><b>Messages are saved in the session</b>
+<p>Messages are automatically saved in the session, in a key called <code>messages</code>.
+By default, not all messages are saved, as you probably don't want the user
+seeing your debug messages. The default configuration of which messages are
+sent should work for most people, but can be configured if required.</p>
+<p>To display the messages, you can do something like this in your layout template:</p>
+<pre class="prettyprint">[% FOREACH msg IN session.messages %]
+    &lt;p&gt;[% msg.toString | html_entity %]&lt;/p&gt;
+[% END %]</pre>
+
+<p>Each message is an object, and can be stringified as above.</p>
+<p>The object includes a function to automatically select a sensible Bootstrap
+color, so if you're using Bootstrap in your application, you could do this:</p>
+<pre class="prettyprint">[% FOREACH msg IN session.messages %]
+    &lt;div class="alert alert-[% msg.bootstrap_color %]"&gt;
+        [% msg.toString | html_entity %]
+    &lt;/div&gt;
+[% END %]</pre>
+
+</li>
+<li><a name="item_Using_the_message_keywords_without_using__code_Dancer2__code_"></a><b>Using the message keywords without using <code>Dancer2</code></b>
+<p>In any other module, you can now include <code>Log::Report</code> and use the same
+keywords/functions to send messages to your application. The one exception is
+the use of the special <code>success</code> keyword, which is specific to the plugin
+(although there is a workaround for that if needed).</p>
+</li>
+<li><a name="item_Clean_exception_handling"></a><b>Clean exception handling</b>
+<p>The module will also, by default, handle any application exceptions cleanly.
+Instead of sending a 500 error, it will forward to an appropriate page, with
+the message rendered in the template as above. More on this to follow later.</p>
+<p>If the application is running with <code>show_errors</code> enabled, then the full error
+will be sent in the message. If <code>show_errors</code> is disabled (such as in a
+production environment), a generic error message is shown and the full error
+will have been sent to the console, or whichever backend is configured.</p>
+</li>
+</ul>
+<p>In summary, by including a couple of modules, we can easily send messages to
+a template, and we are handling application exceptions in a user-friendly manner,
+whilst still capturing the full error information.</p>
+<h2><a name="handling_user_errors_easily_and_cleanly"></a>Handling user errors easily and cleanly</h2>
+
+<p>Handling user errors can be a bit boring and tedious. We'll talk about a way
+to do so that requires very little code.</p>
+<p>First, let's have a look at how we might normally do it. I won't go into
+this in any detail, but you will probably recognise the concept. Maybe
+something like this:</p>
+<pre class="prettyprint">package MyApp;
+
+post '/settings' =&gt; sub {
+    my $message;
+    try {
+        MyApp::Settings-&gt;update($settings);
+        $message = "Settings updated successfully";
+    }
+    catch {
+        $message = $@;
+    };
+    # Do something with $message
+    ...
+};
+ 
+package MyApp::Settings;
+
+sub update {
+    ...
+    die "Invalid email address" unless ...
+    ...
+}</pre>
+
+<p>That works fine to a degree, but the code can easily get more verbose than that,
+and even that alone can get a little tedious to keep typing.</p>
+<p>How would we do that with <a href="https://metacpan.org/module/Dancer2::Plugin::LogReport">Dancer2::Plugin::LogReport</a>?</p>
+<pre class="prettyprint">package MyApp;
+
+post '/settings' =&gt; sub {
+    if (process sub{ MyApp::Settings::update($settings) }) {
+        success "Settings updated successfully";
+    }
+    # No further code needed - all messages already handled
+};
+
+package MyApp::Settings;
+
+use Log::Report;
+sub update {
+    ...
+    error "Invalid email address" unless ...
+    ...
+}</pre>
+
+<p>That's it. But what if it wasn't successful? Well, the module handles all that
+for you. The <code>error</code> function in the module is fatal just like <code>die</code>, but as
+we showed above, its text will have automatically been sent to the template
+for display to the user.</p>
+<p>If you use <code>error</code> outside of <code>process</code>, then it is still fatal and the
+text is still sent to the template, but it's not handled quite as cleanly:
+the user is forwarded back to the same page if it was a <code>POST</code> request,
+forwarded to <code>/</code> if it was a <code>GET</code> request, or fails uncleanly if it
+was already a <code>GET</code> request to <code>'/'</code>.</p>
+<p>As an aside, you would probably want to use the same route handler for both
+<b>GET</b> and <b>POST</b>. If the <b>POST</b> is unsuccessful, the error is caught, and
+the page will behave as a <b>GET</b> request (but with the error text rendered).</p>
+<h3><a name="a_note_on_differentiating_between_expected_and_unexpected_exceptions"></a>A note on differentiating between expected and unexpected exceptions</h3>
+
+<p>If a fatal error occurs that did not originate as a <a href="https://metacpan.org/module/Log::Report">Log::Report</a> message,
+then at some point it has to be translated into its <a href="https://metacpan.org/module/Log::Report">Log::Report</a> equivalent.
+By default in <a href="https://metacpan.org/module/Log::Report">Log::Report</a> there is a bit of guesswork that goes into this
+(to try and classify exceptions aimed at users and developers of accordingly).
+However, given that it is very unlikely that in a web application you would
+want to report the exact exception message to an end user, within the latest
+versions of this plugin all fatal exceptions that occur are classified as
+<code>PANIC</code>. This means that you can handle them as system errors and deal with
+the accordingly. Any unexpected exceptions (such as calling methods on
+undefined values) will then be handled cleanly within your web application.</p>
+<h2><a name="dispatchers"></a>Dispatchers</h2>
+
+<p>While you can use everything so far the way I have demonstrated, there is added
+value in understanding the concept of <a href="https://metacpan.org/module/Log::Report">Log::Report</a> dispatchers. A dispatcher
+is something that processes a message, similar to a Dancer logging engine. You
+can have as many dispatchers as you want, and there are several types available
+(<code>Log::Report::Dispatcher::*</code>). By default, a <code>PERL</code> dispatcher is created
+for sending messages to STDERR, and a special <code>Callback</code> dispatcher is used
+for sending the messages to the template.  Dispatchers are added using the
+<a href="https://metacpan.org/module/Dancer2::Logger::LogReport">Dancer2::Logger::LogReport</a> configuration.</p>
+<p>The configuration of each dispatcher defines what messages it outputs. You
+might want one dispatcher to show all messages, but another to only display
+messages above a certain threshold. The <code>mode</code> of a dispatcher defines what
+messages are shown. The default <code>mode</code> is <code>NORMAL</code>, which only shows messages
+at the level of <code>NOTICE</code> and above. You can change the mode to <code>VERBOSE</code>,
+<code>ASSERT</code> or <code>DEBUG</code> to get an increasing level of messages. If you don't
+specifiy a mode for a dispatcher, it will take the "global" value. The default
+global value is <code>NORMAL</code>. The global value can be changed when loading the
+module:</p>
+<pre class="prettyprint">use Dancer2::Plugin::LogReport mode =&gt; 'DEBUG';</pre>
+
+<p>If you want finer control on what messages a dispatcher processes, you can
+also configure the <code>accept</code> parameter. A full dispatcher configuration
+might look like this:</p>
+<pre class="prettyprint">engines:
+  logger:
+    LogReport:
+      dispatchers:
+        default:              # Name. This one overrides the default dispatcher
+          type: PERL
+          mode: NORMAL
+          accept: FAILURE-    # Only FAILURE messages and above
+        syslog                # Additional dispatcher called syslog
+          type: SYSLOG
+          identity: myapp
+          facility: local0
+          flags: "pid ndelay nowait"
+          mode: DEBUG</pre>
+
+<p>Dispatchers can also be used to format messages.</p>
+<h2><a name="there_is_a_lot_more"></a>There is a lot more</h2>
+
+<p>The above is just a flavour of the common and easy stuff you might like
+to do. <code>Log::Report</code> itself is way, way more powerful than that though.
+There are even more advanced topic, such as:</p>
+<ul>
+<li><a name="item_Add_messages_to_a_class"></a><b>Add messages to a class</b>
+<p>You can add messages to a particular type of class. I use this to tag
+some as HTML content. By default, I HTML-encode all messages in a template,
+this class can be used to bypass that.</p>
+</li>
+<li><a name="item_Use_syslog_for_email_notifications"></a><b>Use syslog for email notifications</b>
+<p>I use a <a href="https://metacpan.org/module/Log::Report::Dispatcher::Syslog">Syslog</a> dispatcher, and configure
+<a href="http://man7.org/linux/man-pages/man8/rsyslogd.8.html">rsyslogd</a> to email me on
+any message above a certain severity. This means that I am normally fixing an
+application error before it has been reported by the user.</p>
+</li>
+<li><a name="item_Translate_message_into_other_languages"></a><b>Translate message into other languages</b>
+<p>You can translate your messages into other languages using
+<a href="https://metacpan.org/module/Log::Report::Translator">Log::Report::Translator</a>.  Importantly, you can do this by dispatcher, so you
+can have user messages in the template translated, but system messages in the
+native language.  Stay tuned for a follow-up Advent article for details of how
+to do this.</p>
+</li>
+<li><a name="item_DBIC_logging"></a><b>DBIC logging</b>
+<p>You can use <a href="https://metacpan.org/module/Log::Report::DBIC::Profiler">Log::Report::DBIC::Profiler</a> to profile DBIC queries in
+your application.</p>
+</li>
+</ul>
+<h2><a name="finally___"></a>Finally...</h2>
+
+<p>I did a talk on the above at LPW: <a href="https://www.youtube.com/watch?v=S1eW5tE967c">https://www.youtube.com/watch?v=S1eW5tE967c</a></p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Andy Beverley for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>No copyright retained. Enjoy.</p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>

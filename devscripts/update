@@ -1,0 +1,41 @@
+#!/usr/bin/env perl
+
+use 5.010;
+use strict;
+use warnings;
+use FindBin '$Bin';
+
+use App::CreateAcmeCPANListsImportModules;
+use Perinci::Sub::Util qw(gen_curried_sub);
+use Perinci::CmdLine::Any;
+
+my @days = (1, 2, 8..24);
+
+gen_curried_sub(
+    'App::CreateAcmeCPANListsImportModules::create_acme_cpanlists_import_modules',
+    {
+        modules => [
+            {
+                name => '2016',
+                url => "http://advent.perldancer.org/2016/",
+                extract_urls => [map {"http://advent.perldancer.org/2016/$_"} @days],
+                summary => 'Modules mentioned in PerlDancer Advent Calendar 2016',
+            },
+            (map {
+                +{
+                    name => sprintf("2016_12_%02d", $_),
+                    url => "http://advent.perldancer.org/2016/$_",
+                    summary => "Modules mentioned in PerlDancer Advent Calendar 2016 (day $_)",
+                } } @days),
+        ],
+        namespace => 'Acme::CPANLists::Import::PerlDancerAdvent',
+        user_agent => 'Mozilla/5.0',
+        dist_dir => "$Bin/..",
+    },
+    'app',
+);
+
+Perinci::CmdLine::Any->new(
+    url => '/main/app',
+    log => 1,
+)->run;

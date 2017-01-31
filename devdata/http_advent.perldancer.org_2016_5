@@ -1,0 +1,239 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<title> Medium-Scale Dancer, Part 3: Views | PerlDancer Advent Calendar</title>
+<link rel="stylesheet" href="/css/style.css" />
+<link rel="alternate" type="application/rss+xml" title="All Articles " href="/feed/2016" /> 
+
+
+<!-- Grab Google CDN's jQuery. fall back to local if necessary -->
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js" type="text/javascript"></script>
+<script type="text/javascript">/* <![CDATA[ */
+    !window.jQuery && document.write('<script src="/javascripts/jquery.js"><\/script>')
+/* ]]> */</script>
+
+<!-- Prettyfy -->
+<link href="/css/prettify.css" type="text/css" rel="stylesheet" />
+<script type="text/javascript" src="/javascripts/prettify.js"></script>
+
+</head>
+<body onload="prettyPrint()">
+<div id="page">
+
+<div id="sidebar">
+<a href="/" class="homelink">Dancer Advent Calendar</a><br />
+
+<p>
+The PerlDancer Advent Calendar is a community-driven project that aims 
+to showcase the Dancer Perl web framework.
+</p>
+
+<p>
+Each day of December until Christmas, one article about Dancer. Stay tuned for new moves!
+</p>
+
+<ul id="sidebar-items">
+<li>
+    <h3>About Dancer</h3>
+    <ul class="links">
+        <li><a href="http://www.perldancer.org/">Dancer homepage</a></li>
+        <li><a href="http://twitter.com/PerlDancer">Official Twitter</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer">Dancer on GitHub</a></li>
+        <li><a href="http://github.com/PerlDancer/Dancer2">Dancer 2 on GitHub</a></li>
+        <li><a class="feed" href="/feed/2016">RSS</a></li>
+    </ul>
+</li>
+</ul>
+</div>
+
+
+<div id="content">
+<div class="pod-document"><h1><a name="medium_scale_dancer__part_3__views"></a>Medium-Scale Dancer, Part 3: Views</h1>
+
+<p>The
+<a href="http://advent.perldancer.org/2016/3">first</a> two
+<a href="http://advent.perldancer.org/2016/4">parts</a> of this article series
+broke the monolithic <code>lib/App.pm</code> file up into a series of Perl
+modules, each focused on a functional centroid of the application.</p>
+<p>If we describe the default <code>lib/App.pm</code> file as monolithic, then we
+might get away with describing the app's <code>views/</code> tree as "polylithic"
+because there is no monolith to break up; the template files in this
+subtree naturally map to web pages, so the app's URL scheme effectively
+keeps them separated by purpose.</p>
+<p>Although we will not start this part of the series needing to break up
+an overly large file, I can pass along some tips that might cause you to
+rethink the current structure of your app's <code>views/*</code> tree.</p>
+<h2><a name="the_view_naming_scheme_should_match_the_url_scheme"></a>The View Naming Scheme Should Match the URL Scheme</h2>
+
+<p>Older web frameworks like PHP, ASP, and JSP define the web app's URL
+structure in the file system. The route scheme defined in the previous
+part of this article series would look like this in PHP:</p>
+<pre class="prettyprint">index.php
+mf/index.php
+mf/sf/index.php</pre>
+
+<p>The view code &#x2014; HTML and inline JavaScript &#x2014; is intermixed with the
+server-side code in the same file. Worse, single files like
+<code>mf/sf/index.php</code> have to handle multiple HTTP verbs; in our
+example, <code>GET</code>, <code>POST</code>, <code>PUT</code>, and <code>DELETE</code>. If each verb returns a
+different web page, you end up with a huge top-level <code>if/elseif/else</code>
+block dividing the file up into a bunch of logically separate chunks.
+There are other bad consequences to this web framework design choice,
+such as that if you want your text editor to do syntax coloring
+correctly, it needs to be able to switch among PHP, JavaScript, and HTML
+syntax, all within the same file. The programmer ends up needing to do
+the same sort of context switching, too.</p>
+<p>Simply put, this is a mess.</p>
+<p><a href="http://www.template-toolkit.org/">Template::Toolkit</a> &#x2014; Dancer's default
+template system &#x2014; solves part of this problem by separating the view
+files from the server-side Perl code. Modern web app development
+frameworks like <a href="https://angularjs.org/">Angular</a> solve the rest of it
+by encouraging you to move all of your JavaScript code into separate
+<code>*.js</code> files, rather than put it inline in the HTML file.</p>
+<p>There is nothing about the way Dancer works that enforces or even
+encourages any particular <code>views/*</code> file naming scheme. Thus this tip:
+for your own sanity, I recommend that you name your template files after
+the corresponding route. The Dancer scheme corresponding to the above
+PHP scheme might look something like this:</p>
+<pre class="prettyprint">views/top.tt
+views/mf/top.tt
+views/mf/sf/get.tt
+views/mf/sf/post.tt
+views/mf/sf/put.tt
+views/mf/sf/delete.tt</pre>
+
+<p>This scheme maps Dancer routes 1:1 to template files, using a naming
+scheme that is easy to remember since it's nearly identical to the URL
+scheme.  It's so simple a mapping that you could write a Perl one-liner
+to do the transform. Restricting yourself to a simple naming convention
+removes a whole class of details that you have to keep in mind while
+working on your web app; you don't have to guess where the template file
+for a given route handler lives, you already <i>know</i> where it lives. You
+will quickly rediscover this simple mapping years from now when you have
+to work on the web app again.</p>
+<p>This naming scheme is very much a suggestion, rather than a
+prescription. For one thing, you may find that the <code>DELETE /mf/sf</code>
+route needs no view, because it just deletes one database record and
+then redirects you to <code>GET /mf/sf</code> to show the change in the normal
+view. In that case, you would not need <code>views/mf/sf/delete.tt</code>.</p>
+<p>The important thing is to <i>have</i> a well-thought-out naming scheme, not
+necessarily to follow the one I've laid out above.</p>
+<h2><a name="factor_common_ui_elements_out"></a>Factor Common UI Elements Out</h2>
+
+<p>If you reuse a particular UI element across different parts of your web
+app, put its template file into a special subdirectory of <code>views/</code>. I
+use <code>views/parts</code> for this.</p>
+<p>If you have an HTML fragment page that is incorporated into your web app
+dynamically on the client side via Ajax, you will need a corresponding
+Dancer route for it, and probably a Perl module for it, too:</p>
+<pre class="prettyprint">views/parts/component.tt
+lib/App/Parts/Component.pm</pre>
+
+<p>Then in <code>lib/App/Parts/Component.pm</code>:</p>
+<pre class="prettyprint">sub _get {
+    # ...work out how to build the component
+    
+    return template '/parts/component' =&gt; {
+        stuff =&gt; 'goes here'
+    };
+}
+    
+prefix '/parts' =&gt; sub {
+    get 'component' =&gt; \&amp;_get;
+};</pre>
+
+<p>I chose the naming scheme for the function carefully. I want to be able
+to use short names here that correspond to the HTTP verb that the
+function handles without colliding with the short names exported by
+Dancer's DSL. The <a href="http://perldoc.perl.org/perlstyle.html">standard Perl style rules</a>
+say that a leading underscore marks a function that isn't meant to be
+called from outside the module, which is exactly correct here; only the
+route handler defined below that function should be calling it.</p>
+<p>You may prefer a different scheme, such as <code>Get()</code>, even though this is
+unconventional Perl style. Again, the important thing is to <i>have</i> a
+consistent style, not that you use the style I've chosen here.</p>
+<p>One argument in favor of <code>Get()</code> over <code>_get()</code> is that you might need
+to be able to reuse this route handler in another of your Perl modules,
+bodily incorporating the HTML fragment within another web page on the
+server side, thus saving an Ajax round trip the first time that that web
+page is served.</p>
+<p>For example, <code>lib/App/MajorFeature.pm</code> might have something like this
+in it:</p>
+<pre class="prettyprint">sub Get {
+    # Work out how to build the main part of the top-level /mf page
+    ...Perl code here...
+    
+    # Assemble the pieces
+    return template '/mf/top' =&gt; {
+        component   =&gt; App::Parts::Component::Get(),
+        other_stuff =&gt; 'goes here',
+    };
+}
+    
+prefix '/mf' =&gt; sub {
+    get '/' =&gt; \&amp;Get;
+    # other route handlers here
+};</pre>
+
+<p>Then within <code>views/mf/top.tt</code>, you can reference <code>$component</code> to
+bodily include that component's HTML fragment into the larger page.</p>
+<p>Now that we have sorted out the purely server-side HTML and Perl code
+files, we will look at the Dancer app design decisions that affect its
+presentation to the browser in the
+<a href="http://advent.perldancer.org/2016/6">next part of this article series</a>.</p>
+<h2><a name="author"></a>Author</h2>
+
+<p>This article has been written by Warren Young for the Perl
+Dancer Advent Calendar 2016.</p>
+<h2><a name="copyright"></a>Copyright</h2>
+
+<p>&#xa9; 2015, 2016 by Educational Technology Resources, licensed under
+<a href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0</a></p>
+</div>
+
+ <div id="disqus_thread"></div>
+    <script type="text/javascript">
+        /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+        var disqus_shortname = 'danceradvent'; // required: replace example with your forum shortname
+
+        /* * * DON'T EDIT BELOW THIS LINE * * */
+        (function() {
+            var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+            dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+            (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+        })();
+    </script>
+    <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+
+
+
+
+</div>
+
+
+
+<div id="footer">
+Powered by the  
+<a href="http://perldancer.org/" title="Perl Dancer - Perl web framework">
+Dancer Perl web framework</a>
+</div>
+</div>
+
+
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-25174467-2']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</body>
+</html>
